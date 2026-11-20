@@ -39,6 +39,12 @@ function canviarColorGeorge(color) {
   const escena = game?.scene.getScene('OfficeScene');
   if (escena?.sys.isActive()) escena.canviarColor(color);
 }
-defineExpose({ canviarColorGeorge });
+
+// Fase 4: Vue -> Phaser, bloqueja o reactiva el teclat
+function bloquejarControls(estat) {
+  const escena = game?.scene.getScene('OfficeScene');
+  if (escena) escena.bloquejarControls(estat);
+}
+defineExpose({ canviarColorGeorge, bloquejarControls });
 </script>
 <template><div ref="contenidor"></div></template>

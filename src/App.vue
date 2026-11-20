@@ -6,6 +6,7 @@ const zonaActiva = ref(null);    // null = passadís | { nom: '...' } = dins d'u
 const monitorProper = ref(null); // Repte 2
 const segons = ref(0);           // Repte 3
 const refCanvas = ref(null);     // Annex
+const modalObert = ref(false);   // Fase 4: modal gran
 let interval = null;
 
 // Repte 3: comptador de segons dins la sala; es reinicia en sortir
@@ -15,6 +16,15 @@ watch(zonaActiva, (zona) => {
   if (zona) interval = setInterval(() => { segons.value++; }, 1000);
 });
 onBeforeUnmount(() => clearInterval(interval));
+
+function obrirModalGran() {
+  modalObert.value = true;
+  refCanvas.value?.bloquejarControls(true);   // Atura el teclat de Phaser
+}
+function tancarModalGran() {
+  modalObert.value = false;
+  refCanvas.value?.bloquejarControls(false);  // Reactiva el teclat
+}
 
 // Annex: Vue dona una ordre a Phaser
 function posarVerd() {

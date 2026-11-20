@@ -35,7 +35,7 @@ export class OfficeScene extends Phaser.Scene {
         this.jugador.body.setOffset(16, 32);
         this.jugador.setCollideWorldBounds(true);
         this.jugador.setDepth(10);
-        // Debug visual (requadre rosa als peus). Descomenta per veure'l.
+        // Debug visual (requadre rosa als peus). Comentat un cop validat.
         // this.physics.world.createDebugGraphic();
         // Bloqueja el pas contra les rajoles de 'Parets' amb collides: true
         if (this.capaParets) this.physics.add.collider(this.jugador, this.capaParets);
@@ -44,12 +44,17 @@ export class OfficeScene extends Phaser.Scene {
 
       if (props.tipus === 'zona') {
         const rect = new Phaser.Geom.Rectangle(obj.x, obj.y, obj.width, obj.height);
-        this.zones.push({ nom: props.nomSala || 'Sala', rect });
+        this.zones.push({
+          nom: props.nomSala || 'Sala',
+          titolMonitor: props.titolMonitor || props.nomSala || 'Sala',
+          streamUrl: props.streamUrl || null, // Fase 4: URL del stream de la sala
+          rect
+        });
         this.add.rectangle(cx, cy, obj.width, obj.height, 0x10b981, 0.18).setStrokeStyle(1.5, 0x10b981);
         this.add.text(cx, obj.y + 12, props.nomSala || 'Sala', { fontSize: '11px', color: '#a7f3d0' }).setOrigin(0.5);
       }
 
-      // Repte 2: guardem els monitors per detectar la proximitat
+      // Repte 2 (Fase 3): guardem els monitors per detectar la proximitat
       if (props.tipus === 'monitor') {
         this.monitors.push({ titol: props.titol || 'Monitor', x: cx, y: cy });
       }
@@ -59,7 +64,7 @@ export class OfficeScene extends Phaser.Scene {
     this.crearAnimacions();
     this.cursors = this.input.keyboard.createCursorKeys();
     this.teclesWASD = this.input.keyboard.addKeys('W,A,S,D');
-    this.teclaShift = this.input.keyboard.addKey('SHIFT'); // Repte 1
+    this.teclaShift = this.input.keyboard.addKey('SHIFT'); // Repte 1 (Fase 3)
   }
 
   // Les direccions van per COLUMNES a george.png: passem l'array exacte de cada columna
@@ -82,13 +87,14 @@ export class OfficeScene extends Phaser.Scene {
 
   update() {
     if (!this.jugador) return;
+    if (this.bloquejat) return; // Fase 4: amb el modal obert no llegim el teclat
     let vx = 0, vy = 0;
     if (this.cursors.left.isDown || this.teclesWASD.A.isDown)  vx = -1;
     if (this.cursors.right.isDown || this.teclesWASD.D.isDown) vx =  1;
     if (this.cursors.up.isDown || this.teclesWASD.W.isDown)    vy = -1;
     if (this.cursors.down.isDown || this.teclesWASD.S.isDown)  vy =  1;
 
-    // Repte 1: Sprint amb Shift
+    // Sprint amb Shift
     const sprint = this.teclaShift.isDown;
     const velocitat = sprint ? 260 : 160;
     this.jugador.anims.timeScale = sprint ? 1.6 : 1.0;
@@ -118,11 +124,13 @@ export class OfficeScene extends Phaser.Scene {
     const trobada = this.zones.find((z) => Phaser.Geom.Rectangle.Contains(z.rect, this.jugador.x, peuY)) || null;
     if (trobada?.nom !== this.zonaActual?.nom) {
       this.zonaActual = trobada;
-      this.game.events.emit('canvi-zona', trobada ? { nom: trobada.nom } : null);
+      this.game.events.emit('canvi-zona', trobada
+        ? { nom: trobada.nom, titolMonitor: trobada.titolMonitor, streamUrl: trobada.streamUrl }
+        : null);
     }
   }
 
-  // Repte 2: avisa a Vue quan George és a menys de 40 px d'un monitor
+  // Avisa a Vue quan George és a menys de 40 px d'un monitor
   comprovarMonitors() {
     const a_prop = this.monitors.find((m) =>
       Phaser.Math.Distance.Between(this.jugador.x, this.jugador.y, m.x, m.y) < 40
@@ -136,6 +144,18 @@ export class OfficeScene extends Phaser.Scene {
   // Annex: ordre que arriba des de Vue (botó «Posar George verd»)
   canviarColor(color) {
     this.jugador?.setTint(color);
+  }
+
+  // Fase 4: cridat des de Vue per aturar/reactivar el teclat quan s'obre/tanca el modal
+  bloquejarControls(bloquejat) {
+    this.bloquejat = bloquejat;
+    this.input.keyboard.enabled = !bloquejat;
+    if (bloquejat && this.jugador) {
+      this.jugador.setVelocity(0, 0); // Frena en sec perquè no llisqui
+      this.jugador.anims.stop();
+      this.jugador.setFrame(this.frameQuiets[this.direccio]);
+    }
+    if (!bloquejat) this.input.keyboard.resetKeys(); // Evita tecles "enganxades"
   }
 
   obtenirPropietats(obj) {
